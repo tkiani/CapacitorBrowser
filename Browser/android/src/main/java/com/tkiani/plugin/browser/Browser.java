@@ -4,6 +4,7 @@ import static androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_ON;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
@@ -193,4 +194,3 @@ public class Browser {
         return session;
     }
 }
-

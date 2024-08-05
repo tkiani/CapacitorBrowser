@@ -82,7 +82,7 @@ public class BrowserPlugin extends Plugin {
         }
         call.resolve();
     }
-
+  
     /**
      * Called when the plugin is resumed. Binds the service.
      */
@@ -126,10 +126,12 @@ public class BrowserPlugin extends Plugin {
      * @param event The event that occurred.
      */
     private void onBrowserEvent(int event) {
-        String eventName;
         switch (event) {
             case Browser.BROWSER_LOADED:
-                eventName = "browserPageLoaded";
+                notifyListeners("browserPageLoaded", null);
                 break;
-            case Browser
-
+            case Browser.BROWSER_FINISHED:
+                notifyListeners("browserFinished", null);
+                break;
+        }
+    }

@@ -102,4 +102,3 @@ import SafariServices
         safariViewController = nil
     }
 }
-

@@ -19,7 +19,8 @@ public class BrowserControllerActivity extends Activity {
     /**
      * Sets up the activity on create.
      *
-     * @param savedInstanceState the saved instance state
+     * @param savedInstanceState the saved instance state<<<<<< capacitorBrowser
+
      */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -101,4 +102,3 @@ public class BrowserControllerActivity extends Activity {
         }
     }
 }
-

@@ -60,4 +60,3 @@ export class BrowserWeb extends WebPlugin implements BrowserPlugin {
  * @since 1.0.0
  */
 export const Browser = new BrowserWeb();
-
