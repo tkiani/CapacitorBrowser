@@ -3,21 +3,29 @@ package com.tkiani.plugin.browser;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
-import com.getcapacitor.Logger;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.util.WebColor;
 
+/**
+ * BrowserPlugin class is a plugin for displaying a web page in a custom Chrome Tab.
+ */
 @CapacitorPlugin(name = "Browser")
 public class BrowserPlugin extends Plugin {
 
-    private Browser implementation;
-
-    public static BrowserControllerListener browserControllerListener;
+    // The implementation of the browser logic
+    private Browser browserImplementation;
+    // A listener for the browser controller activity
+    private static BrowserControllerListener browserControllerListener;
+    // An instance of the browser controller activity
     private static BrowserControllerActivity browserControllerActivityInstance;
 
+    /**
+     * Sets a listener for the browser controller activity.
+     *
+     * @param listener The listener to set.
+     */
     public static void setBrowserControllerListener(BrowserControllerListener listener) {
         browserControllerListener = listener;
         if (listener == null) {
@@ -25,62 +33,45 @@ public class BrowserPlugin extends Plugin {
         }
     }
 
+    /**
+     * Loads the browser implementation.
+     */
+    @Override
     public void load() {
-        implementation = new Browser(getContext());
-        implementation.setBrowserEventListener(this::onBrowserEvent);
+        browserImplementation = new Browser(getContext());
+        browserImplementation.setBrowserEventListener(this::onBrowserEvent);
     }
 
+    /**
+     * Opens a web page in a custom Chrome Tab.
+     *
+     * @param call The call object with the URL and toolbar color.
+     */
     @PluginMethod
     public void open(PluginCall call) {
-        // get the URL
         String urlString = call.getString("url");
-        if (urlString == null) {
-            call.reject("Must provide a URL to open");
+        if (urlString == null || urlString.isEmpty()) {
+            call.reject("Must provide a valid URL to open");
             return;
         }
-        if (urlString.isEmpty()) {
-            call.reject("URL must not be empty");
-            return;
-        }
-        Uri url;
+
+        Uri url = Uri.parse(urlString);
+
+        String toolbarColorString = call.getString("toolbarColor");
+        Integer toolbarColor = toolbarColorString != null ? WebColor.parseColor(toolbarColorString) : null;
+
         try {
-            url = Uri.parse(urlString);
-        } catch (Exception ex) {
-            call.reject(ex.getLocalizedMessage());
-            return;
-        }
-
-        // get the toolbar color, if provided
-        String colorString = call.getString("toolbarColor");
-        Integer toolbarColor = null;
-        if (colorString != null) try {
-            toolbarColor = WebColor.parseColor(colorString);
-        } catch (IllegalArgumentException ex) {
-            Logger.error(getLogTag(), "Invalid color provided for toolbarColor. Using default", null);
-        }
-
-        // open the browser and finish
-        try {
-            Intent intent = new Intent(getContext(), BrowserControllerActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(intent);
-
-            Integer finalToolbarColor = toolbarColor;
-            setBrowserControllerListener(
-                activity -> {
-                    activity.open(implementation, url, finalToolbarColor);
-                    browserControllerActivityInstance = activity;
-                    call.resolve();
-                }
-            );
-        } catch (ActivityNotFoundException ex) {
-            Logger.error(getLogTag(), ex.getLocalizedMessage(), null);
+            startBrowserControllerActivity(url, toolbarColor, call);
+        } catch (ActivityNotFoundException e) {
             call.reject("Unable to display URL");
-            return;
         }
     }
 
+    /**
+     * Closes the browser controller activity.
+     *
+     * @param call The call object.
+     */
     @PluginMethod
     public void close(PluginCall call) {
         if (browserControllerActivityInstance != null) {
@@ -91,20 +82,50 @@ public class BrowserPlugin extends Plugin {
         }
         call.resolve();
     }
-
+  
+    /**
+     * Called when the plugin is resumed. Binds the service.
+     */
     @Override
     protected void handleOnResume() {
-        if (!implementation.bindService()) {
-            Logger.error(getLogTag(), "Error binding to custom tabs service", null);
-        }
+        browserImplementation.bindService();
     }
 
+    /**
+     * Called when the plugin is paused. Unbinds the service.
+     */
     @Override
     protected void handleOnPause() {
-        implementation.unbindService();
+        browserImplementation.unbindService();
     }
 
-    void onBrowserEvent(int event) {
+    /**
+     * Starts the browser controller activity.
+     *
+     * @param url        The URL of the web page.
+     * @param toolbarColor The color of the toolbar.
+     * @param call       The call object.
+     * @throws ActivityNotFoundException If the activity is not found.
+     */
+    private void startBrowserControllerActivity(Uri url, Integer toolbarColor, PluginCall call)
+            throws ActivityNotFoundException {
+        Intent intent = new Intent(getContext(), BrowserControllerActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+
+        setBrowserControllerListener(activity -> {
+            activity.open(browserImplementation, url, toolbarColor);
+            browserControllerActivityInstance = activity;
+            call.resolve();
+        });
+    }
+
+    /**
+     * Called when a browser event occurs. Notifies the listeners.
+     *
+     * @param event The event that occurred.
+     */
+    private void onBrowserEvent(int event) {
         switch (event) {
             case Browser.BROWSER_LOADED:
                 notifyListeners("browserPageLoaded", null);
@@ -114,4 +135,3 @@ public class BrowserPlugin extends Plugin {
                 break;
         }
     }
-}

@@ -1,45 +1,75 @@
 package com.tkiani.plugins.browser;
 
 /**
- * Simple class to handle indeterminate sequence of events. Not thread safe.
+ * EventGroup class is used to handle indeterminate sequence of events.
+ * It is used to track the completion of a group of events.
  */
 class EventGroup {
 
-    interface EventGroupCompletion {
-        void onGroupCompletion();
+    /**
+     * Callback interface for event group completion.
+     */
+    interface CompletionCallback {
+        /**
+         * Called when the event group is completed.
+         */
+        void onCompletion();
     }
 
-    private int count;
-    private boolean isComplete;
-    private EventGroupCompletion completion;
+    // Number of events in the event group
+    private int eventCount;
 
-    public EventGroup(EventGroupCompletion onCompletion) {
-        super();
-        count = 0;
-        isComplete = false;
-        completion = onCompletion;
+    // Flag to indicate if the event group is completed
+    private boolean isCompleted;
+
+    // Callback for event group completion
+    private CompletionCallback completionCallback;
+
+    /**
+     * Constructs an EventGroup object.
+     *
+     * @param completionCallback Callback for event group completion.
+     */
+    EventGroup(CompletionCallback completionCallback) {
+        this.completionCallback = completionCallback;
     }
 
-    public void enter() {
-        count++;
+    /**
+     * Enters the event group.
+     * Increments the event count.
+     */
+    void enter() {
+        eventCount++;
     }
 
-    public void leave() {
-        count--;
+    /**
+     * Leaves the event group.
+     * Decrements the event count and checks for completion.
+     */
+    void leave() {
+        eventCount--;
         checkForCompletion();
     }
 
-    public void reset() {
-        count = 0;
-        isComplete = false;
+    /**
+     * Resets the event group.
+     * Resets the event count and completion flag.
+     */
+    void reset() {
+        eventCount = 0;
+        isCompleted = false;
     }
 
+    /**
+     * Checks if the event group is completed.
+     * If the event count is zero, the event group is completed,
+     * the completion flag is not set and the completion callback is not null,
+     * then the completion callback is called and the completion flag is set.
+     */
     private void checkForCompletion() {
-        if (count <= 0) {
-            if (isComplete == false && completion != null) {
-                completion.onGroupCompletion();
-            }
-            isComplete = true;
+        if (eventCount <= 0 && !isCompleted && completionCallback != null) {
+            completionCallback.onCompletion();
+            isCompleted = true;
         }
     }
 }

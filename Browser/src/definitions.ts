@@ -1,47 +1,66 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 
+/**
+ * Plugin interface for the Browser plugin.
+ *
+ * @since 1.0.0
+ */
 export interface BrowserPlugin {
   /**
-   * Open a page with the specified options.
+   * Opens a web page with the specified options.
+   *
+   * @param options - The options for opening the web page.
+   * @returns A promise that resolves when the web page is opened.
    *
    * @since 1.0.0
    */
   open(options: OpenOptions): Promise<void>;
 
   /**
-   * Web & iOS only: Close an open browser window.
+   * Closes an open browser window.
    *
    * No-op on other platforms.
+   *
+   * @returns A promise that resolves when the browser window is closed.
    *
    * @since 1.0.0
    */
   close(): Promise<void>;
 
   /**
-   * Android & iOS only: Listen for the browser finished event.
-   * It fires when the Browser is closed by the user.
+   * Listens for the browser finished event.
+   * Fires when the browser is closed by the user.
+   *
+   * @param eventName - The name of the event.
+   * @param listener - The listener function to be called when the event is fired.
+   * @returns A promise that resolves with a listener handle.
    *
    * @since 1.0.0
    */
   addListener(
     eventName: 'browserFinished',
-    listenerFunc: () => void,
+    listener: () => void,
   ): Promise<PluginListenerHandle>;
 
   /**
-   * Android & iOS only: Listen for the page loaded event.
-   * It's only fired when the URL passed to open method finish loading.
-   * It is not invoked for any subsequent page loads.
+   * Listens for the page loaded event.
+   * Fires when the URL passed to open method finishes loading.
+   *
+   * @param eventName - The name of the event.
+   * @param listener - The listener function to be called when the event is fired.
+   * @returns A promise that resolves with a listener handle.
    *
    * @since 1.0.0
    */
   addListener(
     eventName: 'browserPageLoaded',
-    listenerFunc: () => void,
+    listener: () => void,
   ): Promise<PluginListenerHandle>;
 
   /**
-   * Remove all native listeners for this plugin.
+   * Removes all native listeners for this plugin.
+   *
+   * @returns A promise that resolves when all listeners are removed.
    *
    * @since 1.0.0
    */
@@ -49,7 +68,7 @@ export interface BrowserPlugin {
 }
 
 /**
- * Represents the options passed to `open`.
+ * Represents the options passed to the `open` method.
  *
  * @since 1.0.0
  */
@@ -62,9 +81,9 @@ export interface OpenOptions {
   url: string;
 
   /**
-   * Web only: Optional target for browser open. Follows
-   * the `target` property for window.open. Defaults
-   * to _blank.
+   * Optional target for browser open. Follows
+   * the `target` property for `window.open`.
+   * Defaults to `_blank`.
    *
    * Ignored on other platforms.
    *
@@ -80,7 +99,8 @@ export interface OpenOptions {
   toolbarColor?: string;
 
   /**
-   * iOS only: The presentation style of the browser. Defaults to fullscreen.
+   * The presentation style of the browser on iOS.
+   * Defaults to `fullscreen`.
    *
    * Ignored on other platforms.
    *
@@ -89,7 +109,7 @@ export interface OpenOptions {
   presentationStyle?: 'fullscreen' | 'popover';
 
   /**
-   * iOS only: The width the browser when using presentationStyle 'popover' on iPads.
+   * The width of the browser when using `presentationStyle` 'popover' on iPads.
    *
    * Ignored on other platforms.
    *
@@ -98,7 +118,7 @@ export interface OpenOptions {
   width?: number;
 
   /**
-   * iOS only: The height the browser when using presentationStyle 'popover' on iPads.
+   * The height of the browser when using `presentationStyle` 'popover' on iPads.
    *
    * Ignored on other platforms.
    *

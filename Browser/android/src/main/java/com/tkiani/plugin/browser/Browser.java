@@ -19,35 +19,32 @@ import androidx.browser.customtabs.*;
 public class Browser {
 
     /**
-     * Interface for callbacks for browser events.
+     * Callback interface for browser events.
      */
     interface BrowserEventListener {
+        /**
+         * Called when a browser event occurs.
+         *
+         * @param event the event that occurred (EVENT_LOADED or EVENT_FINISHED)
+         */
         void onBrowserEvent(int event);
     }
 
-    /**
-     * Sent when the browser has loaded the initial page.
-     */
-    public static final int BROWSER_LOADED = 1;
-    /**
-     * Sent when the browser is finished.
-     */
-    public static final int BROWSER_FINISHED = 2;
+    static final int EVENT_LOADED = 1;
+    static final int EVENT_FINISHED = 2;
 
-    // private properties
     @Nullable
     private BrowserEventListener browserEventListener;
-
     private Context context;
-    private static final String FALLBACK_CUSTOM_TAB_PACKAGE_NAME = "com.android.chrome";
-    private CustomTabsClient customTabsClient;
-    private CustomTabsSession browserSession;
+    private static final String FALLBACK_PACKAGE_NAME = "com.android.chrome";
+    private CustomTabsClient client;
+    private CustomTabsSession session;
     private boolean isInitialLoad = false;
-    private EventGroup group;
+    private EventGroup eventGroup;
     private CustomTabsServiceConnection connection = new CustomTabsServiceConnection() {
         @Override
         public void onCustomTabsServiceConnected(ComponentName name, CustomTabsClient client) {
-            customTabsClient = client;
+            Browser.this.client = client;
             client.warmup(0);
         }
 
@@ -56,51 +53,57 @@ public class Browser {
     };
 
     /**
-     * Create network browser object.
-     * @param context
+     * Constructs a new Browser instance.
+     *
+     * @param context the context in which the browser is running
      */
     public Browser(@NonNull Context context) {
         this.context = context;
-        this.group = new EventGroup(this::handleGroupCompletion);
+        this.eventGroup = new EventGroup(this::handleGroupCompletion);
     }
 
     /**
-     * Set the object to receive callbacks.
-     * @param listener
+     * Sets the browser event listener.
+     *
+     * @param listener the listener to set
      */
     public void setBrowserEventListener(@Nullable BrowserEventListener listener) {
-        this.browserEventListener = listener;
+        browserEventListener = listener;
     }
 
     /**
-     * Return the object that is receiving callbacks.
-     * @return listener
+     * Gets the browser event listener.
+     *
+     * @return the browser event listener
      */
     @Nullable
-    public BrowserEventListener getBrowserEventListenerListener() {
+    public BrowserEventListener getBrowserEventListener() {
         return browserEventListener;
     }
 
     /**
-     * Open the browser to the specified URL.
-     * @param url
+     * Opens a URL in the browser.
+     *
+     * @param url the URL to open
      */
     public void open(Uri url) {
         open(url, null);
     }
 
     /**
-     * Open the browser to the specified URL with the specified toolbar color.
-     * @param url
-     * @param toolbarColor
+     * Opens a URL in the browser with an optional toolbar color.
+     *
+     * @param url the URL to open
+     * @param toolbarColor the color of the toolbar
      */
     public void open(Uri url, @Nullable Integer toolbarColor) {
         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getCustomTabsSession());
-
         builder.setShareState(SHARE_STATE_ON);
 
         if (toolbarColor != null) {
-            CustomTabColorSchemeParams params = new CustomTabColorSchemeParams.Builder().setToolbarColor(toolbarColor.intValue()).build();
+            CustomTabColorSchemeParams params = new CustomTabColorSchemeParams.Builder()
+                    .setToolbarColor(toolbarColor.intValue())
+                    .build();
             builder.setDefaultColorSchemeParams(params);
         }
 
@@ -108,77 +111,86 @@ public class Browser {
         tabsIntent.intent.putExtra(Intent.EXTRA_REFERRER, Uri.parse(Intent.URI_ANDROID_APP_SCHEME + "//" + context.getPackageName()));
 
         isInitialLoad = true;
-        group.reset();
+        eventGroup.reset();
         tabsIntent.launchUrl(context, url);
     }
 
     /**
-     * Bind to the custom tabs service, required to be called in the `onResume` lifecycle event.
+     * Binds the browser to the custom tabs service.
+     *
+     * @return true if the service was bound successfully, false otherwise
      */
     public boolean bindService() {
-        String customTabPackageName = CustomTabsClient.getPackageName(context, null);
-        if (null == customTabPackageName) {
-            customTabPackageName = FALLBACK_CUSTOM_TAB_PACKAGE_NAME;
+        String packageName = CustomTabsClient.getPackageName(context, null);
+        if (packageName == null) {
+            packageName = FALLBACK_PACKAGE_NAME;
         }
-        boolean result = CustomTabsClient.bindCustomTabsService(context, customTabPackageName, connection);
-        group.leave();
+        boolean result = CustomTabsClient.bindCustomTabsService(context, packageName, connection);
+        eventGroup.leave();
         return result;
     }
 
     /**
-     * Unbind the custom tabs service, required to be called in the `onPause` lifecycle event.
+     * Unbinds the browser from the custom tabs service.
      */
     public void unbindService() {
         context.unbindService(connection);
-        group.enter();
+        eventGroup.enter();
     }
 
-    private void handledNavigationEvent(int navigationEvent) {
+    /**
+     * Handles a navigation event.
+     *
+     * @param navigationEvent the navigation event that occurred
+     */
+    private void handleNavigationEvent(int navigationEvent) {
         switch (navigationEvent) {
             case CustomTabsCallback.NAVIGATION_FINISHED:
                 if (isInitialLoad) {
                     if (browserEventListener != null) {
-                        browserEventListener.onBrowserEvent(BROWSER_LOADED);
+                        browserEventListener.onBrowserEvent(EVENT_LOADED);
                     }
                     isInitialLoad = false;
                 }
                 break;
             case CustomTabsCallback.TAB_HIDDEN:
-                group.leave();
+                eventGroup.leave();
                 break;
             case CustomTabsCallback.TAB_SHOWN:
-                group.enter();
+                eventGroup.enter();
                 break;
         }
     }
 
+    /**
+     * Handles the completion of the event group.
+     */
     private void handleGroupCompletion() {
-        // events such as TAB_HIDDEN and onPause can occur for multiple reasons and in
-        // different sequences so there is no single point to fire this. so we rely on the
-        // event group to track when it is safe to assume that the browser is done.
         if (browserEventListener != null) {
-            browserEventListener.onBrowserEvent(BROWSER_FINISHED);
+            browserEventListener.onBrowserEvent(EVENT_FINISHED);
         }
     }
 
+    /**
+     * Gets the custom tabs session.
+     *
+     * @return the custom tabs session, or null if the client is null
+     */
     @Nullable
     private CustomTabsSession getCustomTabsSession() {
-        if (customTabsClient == null) {
+        if (client == null) {
             return null;
         }
 
-        if (browserSession == null) {
-            browserSession =
-                customTabsClient.newSession(
-                    new CustomTabsCallback() {
-                        @Override
-                        public void onNavigationEvent(int navigationEvent, Bundle extras) {
-                            handledNavigationEvent(navigationEvent);
-                        }
-                    }
-                );
+        if (session == null) {
+            session = client.newSession(new CustomTabsCallback() {
+                @Override
+                public void onNavigationEvent(int navigationEvent, Bundle extras) {
+                    handleNavigationEvent(navigationEvent);
+                }
+            });
         }
 
-        return browserSession;
+        return session;
     }
 }
